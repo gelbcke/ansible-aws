@@ -1,0 +1,4 @@
+---
+# tasks file for /home/gelbcke/ansible-aws/
+- name: Provisioning
+  include_tasks: provisioning.yml

@@ -1,0 +1,70 @@
+- name: Creating Security Group
+  amazon.aws.ec2_group:
+    name: "{{ sec_gp_name }}"
+    description: sec_gp_default
+    profile: "{{ profile_name }}"
+    region: "{{ region_id }}"
+    # IN rules
+    rules:
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+        rule_desc: SSH
+    # OUT rules
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: basic_firewall
+
+- name: Creating EC2 Instance
+  amazon.aws.ec2:
+    profile: "{{ profile_name }}"
+    keypair: "{{ key_name }}"
+    instance_type: "{{ instance_type }}"
+    image: "{{ image_id }}"
+    region: "{{ region_id }}"
+    wait: yes
+    group: "{{ sec_gp_name }}"
+    count: "{{ count }}"
+  register: ec2
+
+- name: Setting SSH
+  wait_for:
+    host: "{{ item.public_ip }}"
+    port: 22
+    state: started
+  with_items: "{{ ec2.instances }}"
+
+- name: Setting TAG on instance
+  amazon.aws.ec2_tag:
+    resource: "{{ item.id }}"
+    region: "{{ region_id }}"
+    profile: "{{ profile_name }}"
+    state: present
+  with_items: "{{ ec2.instances }}"
+  args:
+    tags:
+      Name: ansible-{{ item.ami_launch_index|int + 1 }}
+
+- name: Add instance on TEMP
+  add_host:
+    name: "{{ item.public_ip  }}"
+    groups: "{{ sec_gp_name }}-new"
+  with_items: "{{ ec2.instances }}"
+
+- name: Setting public IP on Hosts File
+  lineinfile:
+    dest: "./hosts"
+    regexp: "{{ item.public_ip }}"
+    insertafter: "[created_instances_private_IP]"
+    line: "{{ item.public_ip }}"
+  with_items: "{{ ec2.instances }}"
+
+- name: Setting private IP on Hosts File
+  lineinfile:
+    dest: "./hosts"
+    regexp: "{{ item.private_ip }}"
+    insertafter: "[created_instances_public_IP]"
+    line: "{{ item.private_ip }}"
+  with_items: "{{ ec2.instances }}"
