@@ -4,7 +4,6 @@ localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3 g
 [created_instances_private_IP]
 
 [created_instances_public_IP]
-172.31.43.178
-54.232.153.220
+
 
 
